@@ -19,7 +19,7 @@
         </aapt:attr>
     </path>
     <path
-        android:strokeWidth="3"
+        android:strokeWidth="3.5"
         android:pathData="M24,72 C40,54 52,86 68,64 C80,48 88,58 92,54">
         <aapt:attr name="android:strokeColor">
             <gradient

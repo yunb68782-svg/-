@@ -7,8 +7,11 @@ object WallpaperSettings {
     private const val PREF_NAME = "paper_engine_prefs"
     private const val KEY_WALLPAPER_PATH = "key_wallpaper_path"
     private const val KEY_IS_MUTED = "key_is_muted"
-    private const val KEY_DOUBLE_TAP = "key_double_tap"
     private const val KEY_SPEED = "key_playback_speed"
+    private const val KEY_SCALE = "key_scale_factor"
+    private const val KEY_OFFSET_X = "key_offset_x"
+    private const val KEY_OFFSET_Y = "key_offset_y"
+    private const val KEY_ROTATION = "key_rotation_deg"
 
     private fun getPrefs(context: Context): SharedPreferences {
         return context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
@@ -30,19 +33,43 @@ object WallpaperSettings {
         return getPrefs(context).getBoolean(KEY_IS_MUTED, true)
     }
 
-    fun setDoubleTapEnabled(context: Context, enabled: Boolean) {
-        getPrefs(context).edit().putBoolean(KEY_DOUBLE_TAP, enabled).apply()
-    }
-
-    fun isDoubleTapEnabled(context: Context): Boolean {
-        return getPrefs(context).getBoolean(KEY_DOUBLE_TAP, true)
-    }
-
     fun setSpeed(context: Context, speed: Float) {
         getPrefs(context).edit().putFloat(KEY_SPEED, speed).apply()
     }
 
     fun getSpeed(context: Context): Float {
         return getPrefs(context).getFloat(KEY_SPEED, 1.0f)
+    }
+
+    fun setScale(context: Context, scale: Float) {
+        getPrefs(context).edit().putFloat(KEY_SCALE, scale).apply()
+    }
+
+    fun getScale(context: Context): Float {
+        return getPrefs(context).getFloat(KEY_SCALE, 1.0f)
+    }
+
+    fun setOffsetX(context: Context, x: Float) {
+        getPrefs(context).edit().putFloat(KEY_OFFSET_X, x).apply()
+    }
+
+    fun getOffsetX(context: Context): Float {
+        return getPrefs(context).getFloat(KEY_OFFSET_X, 0.0f)
+    }
+
+    fun setOffsetY(context: Context, y: Float) {
+        getPrefs(context).edit().putFloat(KEY_OFFSET_Y, y).apply()
+    }
+
+    fun getOffsetY(context: Context): Float {
+        return getPrefs(context).getFloat(KEY_OFFSET_Y, 0.0f)
+    }
+
+    fun setRotation(context: Context, deg: Int) {
+        getPrefs(context).edit().putInt(KEY_ROTATION, deg).apply()
+    }
+
+    fun getRotation(context: Context): Int {
+        return getPrefs(context).getInt(KEY_ROTATION, 0)
     }
 }

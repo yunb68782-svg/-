@@ -1,16 +1,11 @@
 <resources>
     <string name="app_name">牛逼壁纸工具</string>
-    <string name="wallpaper_service_label">牛逼壁纸工具</string>
-    <string name="wallpaper_desc">超低功耗、原生硬解无缝循环的极客动态壁纸引擎</string>
-    <string name="title_main">牛逼壁纸控制中心</string>
-    <string name="status_title">当前装载壁纸</string>
-    <string name="no_wallpaper_selected">尚未导入任何本地视频壁纸</string>
-    <string name="btn_pick_video">从手机相册导入视频 (MP4/WebM)</string>
+    <string name="wallpaper_service_label">牛逼壁纸工具 (120Hz 满血版)</string>
+    <string name="wallpaper_desc">120Hz 高刷锁定、OpenGL ES 自由视口缩放平移引擎</string>
+    <string name="title_main">牛逼壁纸控制中心 (120Hz)</string>
+    <string name="status_title">当前壁纸状态</string>
+    <string name="no_wallpaper_selected">尚未装载壁纸 (可选择内置 120FPS 预设)</string>
+    <string name="btn_pick_video">从手机相册导入视频</string>
     <string name="btn_apply_wallpaper">一键应用为桌面与锁屏壁纸</string>
-    <string name="setting_mute_title">桌面声音开关</string>
-    <string name="setting_mute_desc">默认静音，防止工作/学习环境误出声</string>
-    <string name="setting_double_tap_title">双击桌面切换声音</string>
-    <string name="setting_double_tap_desc">在桌面空白区域快速双击，即可开启/关闭音乐</string>
-    <string name="speed_title">视频播放倍速</string>
-    <string name="tip_power_save">💡 深度省电机制：锁屏、熄屏或打开其他应用时，后台硬解芯片立即彻底冻结，耗电量等同于静态图片。</string>
+    <string name="tip_power_save">⚡ 120Hz 满血调度：已解除系统 60Hz 限制；熄屏或进后台时渲染管线立刻休眠。</string>
 </resources>
