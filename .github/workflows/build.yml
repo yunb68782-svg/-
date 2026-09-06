@@ -836,12 +836,12 @@ jobs:
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
         git add .
-        git commit -m "feat: 自动化集成牛逼壁纸工具全部源码与资源" || echo "No changes"
+        git commit -m "feat: 自动化集成牛逼壁纸工具全部源码与资源 [skip ci]" || echo "No changes"
         git push
 
-    - name: 生成 Wrapper 并编译 APK
+    - name: 指定生成 Gradle 8.4 Wrapper 并编译 APK
       run: |
-        gradle wrapper
+        gradle wrapper --gradle-version 8.4 --distribution-type bin
         chmod +x gradlew
         ./gradlew assembleDebug --no-daemon
 
