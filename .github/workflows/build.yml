@@ -1,0 +1,852 @@
+name: Build PaperEngine
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: 检出仓库
+      uses: actions/checkout@v4
+
+    - name: 配置 JDK 17 环境
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
+    - name: 配置 Gradle 环境
+      uses: gradle/actions/setup-gradle@v4
+
+    - name: 全自动生成“牛逼壁纸工具”完整源码与图标
+      run: |
+        python3 - << 'EOF'
+        import os
+
+        files = {}
+
+        files['settings.gradle'] = """pluginManagement {
+            repositories {
+                google()
+                mavenCentral()
+                gradlePluginPortal()
+            }
+        }
+        dependencyResolutionManagement {
+            repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+            repositories {
+                google()
+                mavenCentral()
+            }
+        }
+        rootProject.name = "PaperEngine"
+        include ':app'
+        """
+
+        files['build.gradle'] = """plugins {
+            id 'com.android.application' version '8.2.2' apply false
+            id 'org.jetbrains.kotlin.android' version '1.9.22' apply false
+        }
+        """
+
+        files['gradle.properties'] = """org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+        android.useAndroidX=true
+        android.nonTransitiveRClass=true
+        """
+
+        files['app/build.gradle'] = """plugins {
+            id 'com.android.application'
+            id 'org.jetbrains.kotlin.android'
+        }
+
+        android {
+            namespace 'com.example.paperengine'
+            compileSdk 34
+
+            defaultConfig {
+                applicationId "com.example.paperengine"
+                minSdk 26
+                targetSdk 34
+                versionCode 1
+                versionName "1.0.0"
+            }
+
+            buildTypes {
+                release {
+                    minifyEnabled false
+                }
+            }
+            compileOptions {
+                sourceCompatibility JavaVersion.VERSION_17
+                targetCompatibility JavaVersion.VERSION_17
+            }
+            kotlinOptions {
+                jvmTarget = '17'
+            }
+            buildFeatures {
+                viewBinding true
+            }
+        }
+
+        dependencies {
+            implementation 'androidx.core:core-ktx:1.12.0'
+            implementation 'androidx.appcompat:appcompat:1.6.1'
+            implementation 'com.google.android.material:material:1.11.0'
+            implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+            implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
+        }
+        """
+
+        files['app/proguard-rules.pro'] = "# Debug build"
+
+        files['app/src/main/AndroidManifest.xml'] = """<?xml version="1.0" encoding="utf-8"?>
+        <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+            <application
+                android:allowBackup="true"
+                android:icon="@drawable/ic_app_icon"
+                android:label="@string/app_name"
+                android:roundIcon="@drawable/ic_app_icon"
+                android:supportsRtl="true"
+                android:theme="@style/Theme.PaperEngine">
+                <activity
+                    android:name=".MainActivity"
+                    android:exported="true">
+                    <intent-filter>
+                        <action android:name="android.intent.action.MAIN" />
+                        <category android:name="android.intent.category.LAUNCHER" />
+                    </intent-filter>
+                </activity>
+                <service
+                    android:name=".PaperWallpaperService"
+                    android:enabled="true"
+                    android:exported="true"
+                    android:label="@string/wallpaper_service_label"
+                    android:permission="android.permission.BIND_WALLPAPER">
+                    <intent-filter>
+                        <action android:name="android.service.wallpaper.WallpaperService" />
+                    </intent-filter>
+                    <meta-data
+                        android:name="android.service.wallpaper"
+                        android:resource="@xml/wallpaper" />
+                </service>
+            </application>
+        </manifest>
+        """
+
+        files['app/src/main/res/xml/wallpaper.xml'] = """<?xml version="1.0" encoding="utf-8"?>
+        <wallpaper xmlns:android="http://schemas.android.com/apk/res/android"
+            android:thumbnail="@drawable/ic_app_icon"
+            android:description="@string/wallpaper_desc" />
+        """
+
+        files['app/src/main/res/values/strings.xml'] = """<resources>
+            <string name="app_name">牛逼壁纸工具</string>
+            <string name="wallpaper_service_label">牛逼壁纸工具</string>
+            <string name="wallpaper_desc">超低功耗、原生硬解无缝循环的极客动态壁纸引擎</string>
+            <string name="title_main">牛逼壁纸控制中心</string>
+            <string name="status_title">当前装载壁纸</string>
+            <string name="no_wallpaper_selected">尚未导入任何本地视频壁纸</string>
+            <string name="btn_pick_video">从手机相册导入视频 (MP4/WebM)</string>
+            <string name="btn_apply_wallpaper">一键应用为桌面与锁屏壁纸</string>
+            <string name="setting_mute_title">桌面声音开关</string>
+            <string name="setting_mute_desc">默认静音，防止工作/学习环境误出声</string>
+            <string name="setting_double_tap_title">双击桌面切换声音</string>
+            <string name="setting_double_tap_desc">在桌面空白区域快速双击，即可开启/关闭音乐</string>
+            <string name="speed_title">视频播放倍速</string>
+            <string name="tip_power_save">💡 深度省电机制：锁屏、熄屏或打开其他应用时，后台硬解芯片立即彻底冻结，耗电量等同于静态图片。</string>
+        </resources>
+        """
+
+        files['app/src/main/res/values/colors.xml'] = """<?xml version="1.0" encoding="utf-8"?>
+        <resources>
+            <color name="primary">#7C4DFF</color>
+            <color name="primary_variant">#651FFF</color>
+            <color name="background">#0F1115</color>
+            <color name="card_bg">#1A1D24</color>
+            <color name="text_primary">#F1F3F7</color>
+            <color name="text_secondary">#8C93A4</color>
+            <color name="accent_green">#00E5FF</color>
+            <color name="divider">#262A34</color>
+        </resources>
+        """
+
+        files['app/src/main/res/values/themes.xml'] = """<?xml version="1.0" encoding="utf-8"?>
+        <resources>
+            <style name="Theme.PaperEngine" parent="Theme.Material3.Dark.NoActionBar">
+                <item name="colorPrimary">@color/primary</item>
+                <item name="android:statusBarColor">@color/background</item>
+                <item name="android:windowBackground">@color/background</item>
+            </style>
+        </resources>
+        """
+
+        files['app/src/main/res/drawable/ic_app_icon.xml'] = """<vector xmlns:android="http://schemas.android.com/apk/res/android"
+            xmlns:aapt="http://schemas.android.com/aapt"
+            android:width="108dp"
+            android:height="108dp"
+            android:viewportWidth="108"
+            android:viewportHeight="108">
+            <path android:pathData="M18,0 L90,0 A18,18 0 0,1 108,18 L108,90 A18,18 0 0,1 90,108 L18,108 A18,18 0 0,1 0,90 L0,18 A18,18 0 0,1 18,0 Z">
+                <aapt:attr name="android:fillColor">
+                    <gradient
+                        android:type="linear"
+                        android:startX="0"
+                        android:startY="0"
+                        android:endX="108"
+                        android:endY="108">
+                        <item android:offset="0.0" android:color="#1F1B2C" />
+                        <item android:offset="0.5" android:color="#12131A" />
+                        <item android:offset="1.0" android:color="#0A0B10" />
+                    </gradient>
+                </aapt:attr>
+            </path>
+            <path
+                android:strokeWidth="3"
+                android:pathData="M24,72 C40,54 52,86 68,64 C80,48 88,58 92,54">
+                <aapt:attr name="android:strokeColor">
+                    <gradient
+                        android:type="linear"
+                        android:startX="24"
+                        android:startY="72"
+                        android:endX="92"
+                        android:endY="54">
+                        <item android:offset="0.0" android:color="#7F00FF" />
+                        <item android:offset="1.0" android:color="#00F0FF" />
+                    </gradient>
+                </aapt:attr>
+            </path>
+            <path
+                android:pathData="M44,36 L74,54 L44,72 Z">
+                <aapt:attr name="android:fillColor">
+                    <gradient
+                        android:type="linear"
+                        android:startX="44"
+                        android:startY="36"
+                        android:endX="74"
+                        android:endY="72">
+                        <item android:offset="0.0" android:color="#00E5FF" />
+                        <item android:offset="1.0" android:color="#7C4DFF" />
+                    </gradient>
+                </aapt:attr>
+            </path>
+            <path
+                android:fillColor="#FFFFFF"
+                android:pathData="M78,32 A4,4 0 1,1 70,32 A4,4 0 1,1 78,32 Z" />
+        </vector>
+        """
+
+        files['app/src/main/res/drawable/bg_card.xml'] = """<?xml version="1.0" encoding="utf-8"?>
+        <shape xmlns:android="http://schemas.android.com/apk/res/android">
+            <solid android:color="@color/card_bg" />
+            <corners android:radius="16dp" />
+            <stroke android:width="1dp" android:color="@color/divider" />
+        </shape>
+        """
+
+        files['app/src/main/res/drawable/ic_play.xml'] = """<vector xmlns:android="http://schemas.android.com/apk/res/android"
+            android:width="24dp"
+            android:height="24dp"
+            android:viewportWidth="24"
+            android:viewportHeight="24">
+            <path
+                android:fillColor="@color/text_primary"
+                android:pathData="M8,5.14v14l11,-7l-11,-7z"/>
+        </vector>
+        """
+
+        files['app/src/main/res/drawable/ic_add.xml'] = """<vector xmlns:android="http://schemas.android.com/apk/res/android"
+            android:width="24dp"
+            android:height="24dp"
+            android:viewportWidth="24"
+            android:viewportHeight="24">
+            <path
+                android:fillColor="@color/text_primary"
+                android:pathData="M19,13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+        </vector>
+        """
+
+        files['app/src/main/res/layout/activity_main.xml'] = """<?xml version="1.0" encoding="utf-8"?>
+        <androidx.core.widget.NestedScrollView
+            xmlns:android="http://schemas.android.com/apk/res/android"
+            xmlns:app="http://schemas.android.com/apk/res-auto"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@color/background"
+            android:fillViewport="true">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="20dp">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/title_main"
+                    android:textSize="26sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text_primary"
+                    android:layout_marginTop="16dp"
+                    android:layout_marginBottom="20dp" />
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_card"
+                    android:orientation="vertical"
+                    android:padding="16dp"
+                    android:layout_marginBottom="16dp">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/status_title"
+                        android:textSize="13sp"
+                        android:textColor="@color/text_secondary" />
+                    <TextView
+                        android:id="@+id/tvCurrentWallpaper"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/no_wallpaper_selected"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/accent_green"
+                        android:layout_marginTop="6dp" />
+                </LinearLayout>
+                <Button
+                    android:id="@+id/btnPickVideo"
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp"
+                    android:text="@string/btn_pick_video"
+                    android:textSize="15sp"
+                    android:textStyle="bold"
+                    app:icon="@drawable/ic_add"
+                    app:iconGravity="textStart"
+                    android:layout_marginBottom="12dp" />
+                <Button
+                    android:id="@+id/btnApplyWallpaper"
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp"
+                    style="@style/Widget.Material3.Button.TonalButton"
+                    android:text="@string/btn_apply_wallpaper"
+                    android:textSize="15sp"
+                    android:textStyle="bold"
+                    app:icon="@drawable/ic_play"
+                    app:iconGravity="textStart"
+                    android:layout_marginBottom="24dp" />
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_card"
+                    android:orientation="vertical"
+                    android:padding="16dp"
+                    android:layout_marginBottom="16dp">
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/setting_mute_title"
+                                android:textSize="15sp"
+                                android:textStyle="bold"
+                                android:textColor="@color/text_primary" />
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/setting_mute_desc"
+                                android:textSize="12sp"
+                                android:textColor="@color/text_secondary"
+                                android:layout_marginTop="2dp" />
+                        </LinearLayout>
+                        <com.google.android.material.materialswitch.MaterialSwitch
+                            android:id="@+id/switchMute"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:checked="true" />
+                    </LinearLayout>
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:background="@color/divider"
+                        android:layout_marginTop="12dp"
+                        android:layout_marginBottom="12dp" />
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/setting_double_tap_title"
+                                android:textSize="15sp"
+                                android:textStyle="bold"
+                                android:textColor="@color/text_primary" />
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/setting_double_tap_desc"
+                                android:textSize="12sp"
+                                android:textColor="@color/text_secondary"
+                                android:layout_marginTop="2dp" />
+                        </LinearLayout>
+                        <com.google.android.material.materialswitch.MaterialSwitch
+                            android:id="@+id/switchDoubleTap"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:checked="true" />
+                    </LinearLayout>
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:background="@color/divider"
+                        android:layout_marginTop="12dp"
+                        android:layout_marginBottom="12dp" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/speed_title"
+                        android:textSize="15sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/text_primary" />
+                    <RadioGroup
+                        android:id="@+id/rgSpeed"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginTop="8dp">
+                        <RadioButton
+                            android:id="@+id/rbSpeed075"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="0.75x"
+                            android:textColor="@color/text_primary" />
+                        <RadioButton
+                            android:id="@+id/rbSpeed10"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="1.0x"
+                            android:checked="true"
+                            android:textColor="@color/text_primary" />
+                        <RadioButton
+                            android:id="@+id/rbSpeed125"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="1.25x"
+                            android:textColor="@color/text_primary" />
+                    </RadioGroup>
+                </LinearLayout>
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/tip_power_save"
+                    android:textSize="12sp"
+                    android:textColor="@color/text_secondary"
+                    android:lineSpacingExtra="4dp" />
+            </LinearLayout>
+        </androidx.core.widget.NestedScrollView>
+        """
+
+        files['app/src/main/java/com/example/paperengine/WallpaperSettings.kt'] = """package com.example.paperengine
+
+        import android.content.Context
+        import android.content.SharedPreferences
+
+        object WallpaperSettings {
+            private const val PREF_NAME = "paper_engine_prefs"
+            private const val KEY_WALLPAPER_PATH = "key_wallpaper_path"
+            private const val KEY_IS_MUTED = "key_is_muted"
+            private const val KEY_DOUBLE_TAP = "key_double_tap"
+            private const val KEY_SPEED = "key_playback_speed"
+
+            private fun getPrefs(context: Context): SharedPreferences {
+                return context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+            }
+
+            fun setWallpaperPath(context: Context, path: String) {
+                getPrefs(context).edit().putString(KEY_WALLPAPER_PATH, path).apply()
+            }
+
+            fun getWallpaperPath(context: Context): String {
+                return getPrefs(context).getString(KEY_WALLPAPER_PATH, "") ?: ""
+            }
+
+            fun setMuted(context: Context, muted: Boolean) {
+                getPrefs(context).edit().putBoolean(KEY_IS_MUTED, muted).apply()
+            }
+
+            fun isMuted(context: Context): Boolean {
+                return getPrefs(context).getBoolean(KEY_IS_MUTED, true)
+            }
+
+            fun setDoubleTapEnabled(context: Context, enabled: Boolean) {
+                getPrefs(context).edit().putBoolean(KEY_DOUBLE_TAP, enabled).apply()
+            }
+
+            fun isDoubleTapEnabled(context: Context): Boolean {
+                return getPrefs(context).getBoolean(KEY_DOUBLE_TAP, true)
+            }
+
+            fun setSpeed(context: Context, speed: Float) {
+                getPrefs(context).edit().putFloat(KEY_SPEED, speed).apply()
+            }
+
+            fun getSpeed(context: Context): Float {
+                return getPrefs(context).getFloat(KEY_SPEED, 1.0f)
+            }
+        }
+        """
+
+        files['app/src/main/java/com/example/paperengine/PaperWallpaperService.kt'] = """package com.example.paperengine
+
+        import android.media.MediaPlayer
+        import android.media.PlaybackParams
+        import android.os.Build
+        import android.service.wallpaper.WallpaperService
+        import android.util.Log
+        import android.view.GestureDetector
+        import android.view.MotionEvent
+        import android.view.SurfaceHolder
+        import java.io.File
+
+        class PaperWallpaperService : WallpaperService() {
+
+            override fun onCreateEngine(): Engine {
+                return VideoWallpaperEngine()
+            }
+
+            inner class VideoWallpaperEngine : Engine() {
+
+                private var mediaPlayer: MediaPlayer? = null
+                private var isSurfaceCreated = false
+                private var currentMuted = true
+                private lateinit var gestureDetector: GestureDetector
+
+                override fun onCreate(surfaceHolder: SurfaceHolder) {
+                    super.onCreate(surfaceHolder)
+                    currentMuted = WallpaperSettings.isMuted(applicationContext)
+
+                    gestureDetector = GestureDetector(applicationContext, object : GestureDetector.SimpleOnGestureListener() {
+                        override fun onDoubleTap(e: MotionEvent): Boolean {
+                            if (WallpaperSettings.isDoubleTapEnabled(applicationContext)) {
+                                toggleMute()
+                                return true
+                            }
+                            return false
+                        }
+                    })
+                }
+
+                override fun onTouchEvent(event: MotionEvent?) {
+                    super.onTouchEvent(event)
+                    if (event != null) {
+                        gestureDetector.onTouchEvent(event)
+                    }
+                }
+
+                private fun toggleMute() {
+                    currentMuted = !currentMuted
+                    WallpaperSettings.setMuted(applicationContext, currentMuted)
+                    applyVolume()
+                }
+
+                private fun applyVolume() {
+                    mediaPlayer?.let { player ->
+                        try {
+                            if (currentMuted) {
+                                player.setVolume(0.0f, 0.0f)
+                            } else {
+                                player.setVolume(1.0f, 1.0f)
+                            }
+                        } catch (e: Exception) {
+                            Log.e("PaperEngine", "调节音量失败: " + e.message)
+                        }
+                    }
+                }
+
+                private fun applySpeed() {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        mediaPlayer?.let { player ->
+                            try {
+                                val speed = WallpaperSettings.getSpeed(applicationContext)
+                                val params = player.playbackParams
+                                params.speed = speed
+                                player.playbackParams = params
+                            } catch (e: Exception) {
+                                Log.e("PaperEngine", "设置倍速失败: " + e.message)
+                            }
+                        }
+                    }
+                }
+
+                override fun onVisibilityChanged(visible: Boolean) {
+                    super.onVisibilityChanged(visible)
+                    if (visible) {
+                        if (mediaPlayer == null) {
+                            initMediaPlayer()
+                        } else {
+                            try {
+                                mediaPlayer?.start()
+                            } catch (e: Exception) {
+                                initMediaPlayer()
+                            }
+                        }
+                    } else {
+                        try {
+                            mediaPlayer?.pause()
+                        } catch (e: Exception) {
+                            Log.e("PaperEngine", "休眠暂停失败: " + e.message)
+                        }
+                    }
+                }
+
+                override fun onSurfaceCreated(holder: SurfaceHolder) {
+                    super.onSurfaceCreated(holder)
+                    isSurfaceCreated = true
+                    initMediaPlayer()
+                }
+
+                override fun onSurfaceDestroyed(holder: SurfaceHolder) {
+                    super.onSurfaceDestroyed(holder)
+                    isSurfaceCreated = false
+                    releaseMediaPlayer()
+                }
+
+                private fun initMediaPlayer() {
+                    val videoPath = WallpaperSettings.getWallpaperPath(applicationContext)
+                    if (videoPath.isBlank() || !isSurfaceCreated) {
+                        return
+                    }
+
+                    val videoFile = File(videoPath)
+                    if (!videoFile.exists() || videoFile.length() == 0L) {
+                        return
+                    }
+
+                    releaseMediaPlayer()
+
+                    try {
+                        mediaPlayer = MediaPlayer().apply {
+                            setDisplay(surfaceHolder)
+                            setDataSource(videoFile.absolutePath)
+                            isLooping = true
+
+                            setOnCompletionListener { mp ->
+                                try {
+                                    mp.seekTo(0)
+                                    mp.start()
+                                } catch (ex: Exception) {
+                                    initMediaPlayer()
+                                }
+                            }
+
+                            setOnPreparedListener { mp ->
+                                applyVolume()
+                                applySpeed()
+                                if (isVisible) {
+                                    mp.start()
+                                }
+                            }
+
+                            setOnErrorListener { _, _, _ ->
+                                releaseMediaPlayer()
+                                initMediaPlayer()
+                                true
+                            }
+
+                            prepareAsync()
+                        }
+                    } catch (e: Exception) {
+                        Log.e("PaperEngine", "播放器初始化异常: " + e.message)
+                    }
+                }
+
+                private fun releaseMediaPlayer() {
+                    mediaPlayer?.let { player ->
+                        try {
+                            player.stop()
+                            player.reset()
+                            player.release()
+                        } catch (e: Exception) {
+                            Log.e("PaperEngine", "释放播放器出错: " + e.message)
+                        }
+                    }
+                    mediaPlayer = null
+                }
+
+                override fun onDestroy() {
+                    super.onDestroy()
+                    releaseMediaPlayer()
+                }
+            }
+        }
+        """
+
+        files['app/src/main/java/com/example/paperengine/MainActivity.kt'] = """package com.example.paperengine
+
+        import android.app.WallpaperManager
+        import android.content.ComponentName
+        import android.content.Intent
+        import android.net.Uri
+        import android.os.Bundle
+        import android.widget.Toast
+        import androidx.activity.result.contract.ActivityResultContracts
+        import androidx.appcompat.app.AppCompatActivity
+        import com.example.paperengine.databinding.ActivityMainBinding
+        import java.io.File
+        import java.io.FileOutputStream
+
+        class MainActivity : AppCompatActivity() {
+
+            private lateinit var binding: ActivityMainBinding
+
+            private val selectVideoLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+                uri?.let { handleImportedVideo(it) }
+            }
+
+            override fun onCreate(savedInstanceState: Bundle?) {
+                super.onCreate(savedInstanceState)
+                binding = ActivityMainBinding.inflate(layoutInflater)
+                setContentView(binding.root)
+
+                setupUI()
+                refreshStatus()
+            }
+
+            private fun setupUI() {
+                binding.btnPickVideo.setOnClickListener {
+                    selectVideoLauncher.launch("video/*")
+                }
+
+                binding.btnApplyWallpaper.setOnClickListener {
+                    val currentPath = WallpaperSettings.getWallpaperPath(this)
+                    if (currentPath.isBlank()) {
+                        Toast.makeText(this, "请先导入一个视频壁纸！", Toast.LENGTH_SHORT).show()
+                        return@setOnClickListener
+                    }
+
+                    try {
+                        val intent = Intent(WallpaperManager.ACTION_CHANGE_LIVE_WALLPAPER).apply {
+                            putExtra(
+                                WallpaperManager.EXTRA_LIVE_WALLPAPER_COMPONENT,
+                                ComponentName(this@MainActivity, PaperWallpaperService::class.java)
+                            )
+                        }
+                        startActivity(intent)
+                    } catch (e: Exception) {
+                        Toast.makeText(this, "未能直接唤起系统壁纸页，请在系统壁纸中手动选择 牛逼壁纸工具", Toast.LENGTH_LONG).show()
+                    }
+                }
+
+                binding.switchMute.isChecked = WallpaperSettings.isMuted(this)
+                binding.switchMute.setOnCheckedChangeListener { _, isChecked ->
+                    WallpaperSettings.setMuted(this, isChecked)
+                }
+
+                binding.switchDoubleTap.isChecked = WallpaperSettings.isDoubleTapEnabled(this)
+                binding.switchDoubleTap.setOnCheckedChangeListener { _, isChecked ->
+                    WallpaperSettings.setDoubleTapEnabled(this, isChecked)
+                }
+
+                when (WallpaperSettings.getSpeed(this)) {
+                    0.75f -> binding.rbSpeed075.isChecked = true
+                    1.25f -> binding.rbSpeed125.isChecked = true
+                    else -> binding.rbSpeed10.isChecked = true
+                }
+
+                binding.rgSpeed.setOnCheckedChangeListener { _, checkedId ->
+                    val speed = when (checkedId) {
+                        R.id.rbSpeed075 -> 0.75f
+                        R.id.rbSpeed125 -> 1.25f
+                        else -> 1.0f
+                    }
+                    WallpaperSettings.setSpeed(this, speed)
+                }
+            }
+
+            private fun handleImportedVideo(sourceUri: Uri) {
+                try {
+                    val storageDir = File(filesDir, "wallpapers")
+                    if (!storageDir.exists()) {
+                        storageDir.mkdirs()
+                    }
+
+                    val targetFile = File(storageDir, "active_wallpaper.mp4")
+                    contentResolver.openInputStream(sourceUri)?.use { input ->
+                        FileOutputStream(targetFile).use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+
+                    WallpaperSettings.setWallpaperPath(this, targetFile.absolutePath)
+                    Toast.makeText(this, "壁纸导入成功！", Toast.LENGTH_SHORT).show()
+                    refreshStatus()
+
+                } catch (e: Exception) {
+                    Toast.makeText(this, "视频导入失败: " + e.message, Toast.LENGTH_SHORT).show()
+                }
+            }
+
+            private fun refreshStatus() {
+                val path = WallpaperSettings.getWallpaperPath(this)
+                if (path.isNotBlank() && File(path).exists()) {
+                    val file = File(path)
+                    val sizeMb = file.length() / (1024 * 1024)
+                    binding.tvCurrentWallpaper.text = "已就绪: active_wallpaper.mp4 (" + sizeMb + " MB)"
+                    binding.tvCurrentWallpaper.setTextColor(resources.getColor(R.color.accent_green, null))
+                } else {
+                    binding.tvCurrentWallpaper.text = getString(R.string.no_wallpaper_selected)
+                    binding.tvCurrentWallpaper.setTextColor(resources.getColor(R.color.text_secondary, null))
+                }
+            }
+        }
+        """
+
+        for file_path, content in files.items():
+            folder = os.path.dirname(file_path)
+            if folder:
+                os.makedirs(folder, exist_ok=True)
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.write(content.strip() + '\n')
+        print("所有项目代码与高质感图标已生成完毕！")
+        EOF
+
+    - name: 提交并推送完整源码到仓库分支
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git add .
+        git commit -m "feat: 自动化集成牛逼壁纸工具全部源码与资源" || echo "No changes"
+        git push
+
+    - name: 生成 Wrapper 并编译 APK
+      run: |
+        gradle wrapper
+        chmod +x gradlew
+        ./gradlew assembleDebug --no-daemon
+
+    - name: 导出 APK 安装包
+      uses: actions/upload-artifact@v4
+      with:
+        name: 牛逼壁纸工具_正式版APK
+        path: app/build/outputs/apk/debug/*.apk
