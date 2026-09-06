@@ -22,10 +22,12 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
-    - name: 配置 Gradle 环境
+    - name: 配置 Gradle 8.4 环境
       uses: gradle/actions/setup-gradle@v4
+      with:
+        gradle-version: '8.4'
 
-    - name: 生成 PaperEngine 完整稳定版源码
+    - name: 生成 PaperEngine 完整源码
       run: |
         python3 - << 'EOF'
         import os
@@ -74,8 +76,8 @@ jobs:
                 applicationId "com.example.paperengine"
                 minSdk 26
                 targetSdk 34
-                versionCode 7
-                versionName "5.2.0"
+                versionCode 8
+                versionName "5.3.0"
             }
 
             buildTypes {
@@ -715,7 +717,6 @@ jobs:
                 private var isEngineDestroyed = false
                 private var isVisibleNow = false
 
-                // 内存缓存参数，避免在 120FPS 下每帧读 SharedPreferences 导致卡顿发热
                 @Volatile private var cachedScale = 1.0f
                 @Volatile private var cachedOffsetX = 0.0f
                 @Volatile private var cachedOffsetY = 0.0f
@@ -850,7 +851,6 @@ jobs:
                     postToRenderThread {
                         if (visible) {
                             if (isSurfaceCreated) {
-                                // 核心修复：存在就 resume 唤醒，不存在才重新构建，避免锁屏后壁纸定格
                                 if (mediaPlayer == null) {
                                     ensureEngineStarted()
                                 } else {
@@ -1118,7 +1118,6 @@ jobs:
 
                         GLES20.glUseProgram(program)
 
-                        // 读取内存缓存，零 IO 损耗
                         val scale = cachedScale
                         val offX = cachedOffsetX
                         val offY = cachedOffsetY
@@ -1262,7 +1261,6 @@ jobs:
                             }
                         }
                         try {
-                            // 等待渲染管线干净退出，杜绝死锁与泄露
                             latch.await(500, TimeUnit.MILLISECONDS)
                         } catch (ignored: Exception) {}
                         thread.quitSafely()
@@ -1610,11 +1608,10 @@ jobs:
         git commit -m "fix: resolve lifecycle resume bug, throttle prefs reading, optimize presets [skip ci]" || echo "No changes"
         git push || true
 
-    - name: 生成 4 套极速轻量 120FPS 预设 (CRF高能效压制)
+    - name: 生成 4 套极速轻量 120FPS 预设
       run: |
         mkdir -p app/src/main/assets/presets
 
-        # 换用 crf 23 + veryfast，编译速度翻倍，且 APK 大小直接省下近 70MB 内存占用
         ffmpeg -y -f lavfi -i "testsrc2=s=1080x1920:r=120" -t 5 -c:v libx264 -crf 23 -preset veryfast -pix_fmt yuv420p app/src/main/assets/presets/preset_matrix.mp4
         ffmpeg -y -f lavfi -i "smptebars=s=1080x1920:r=120" -t 5 -c:v libx264 -crf 23 -preset veryfast -pix_fmt yuv420p app/src/main/assets/presets/preset_neon.mp4
         ffmpeg -y -f lavfi -i "testsrc=s=1080x1920:r=120" -t 5 -c:v libx264 -crf 23 -preset veryfast -pix_fmt yuv420p app/src/main/assets/presets/preset_quantum.mp4
@@ -1622,11 +1619,9 @@ jobs:
 
         ls -lh app/src/main/assets/presets/
 
-    - name: 指定 Gradle 8.4 Wrapper 并编译 APK
+    - name: 编译 APK 安装包
       run: |
-        gradle wrapper --gradle-version 8.4 --distribution-type bin
-        chmod +x gradlew
-        ./gradlew assembleDebug --no-daemon
+        gradle assembleDebug --no-daemon --stacktrace
 
     - name: 导出 APK 安装包
       uses: actions/upload-artifact@v4
